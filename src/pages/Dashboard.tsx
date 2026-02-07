@@ -1,350 +1,120 @@
-import React, { useState } from 'react';
-import {
-    LayoutDashboard,
-    Monitor,
-    Activity,
-    FileText,
-    Settings,
-    ChevronLeft,
-    Bell,
-    User,
-    Server,
-    Wifi,
-    AlertCircle,
-    CheckCircle2,
-    TrendingUp,
-    Radio,
-    Menu
-} from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import DeviceTable from '@/components/DashboardComponents/DeviceTable';
+import EventFeed from '@/components/DashboardComponents/EventFeed';
+import MetricCard from '@/components/DashboardComponents/MetricCard';
+import NetworkCharts from '@/components/DashboardComponents/NetworkCharts';
+import { useDashboardData } from '@/hooks/useDashboardData';
+import { Activity, AlertCircle, CheckCircle2, Radio, Server, Wifi, WifiOff } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 
-// TypeScript Interfaces
-interface Device {
-    id: string;
-    name: string;
-    ip: string;
-    mac: string;
-    vendor: string;
-    type: string;
-    status: 'active' | 'idle';
-    lastSeen: string;
+interface ArpHistoryPoint {
+  timestamp: string;
+  arpRequests: number;
 }
 
-interface MetricCardProps {
-    title: string;
-    value: string | number;
-    description: string;
-    icon: React.ReactNode;
-    trend?: string;
-}
-
-interface Event {
-    id: string;
-    type: 'join' | 'leave' | 'reassign' | 'inactive';
-    message: string;
-    timestamp: string;
-    icon: React.ReactNode;
-}
-
-// Mock Data
-const mockDevices: Device[] = [
-    {
-        id: '1',
-        name: 'MacBook-Pro-Admin',
-        ip: '192.168.1.15',
-        mac: '00:1B:63:84:45:E6',
-        vendor: 'Apple',
-        type: 'Laptop',
-        status: 'active',
-        lastSeen: '2 minutes ago'
-    },
-    {
-        id: '2',
-        name: 'Galaxy-S24',
-        ip: '192.168.1.23',
-        mac: '5C:F9:DD:5A:12:3F',
-        vendor: 'Samsung',
-        type: 'Mobile',
-        status: 'active',
-        lastSeen: '5 minutes ago'
-    },
-    {
-        id: '3',
-        name: 'LaserJet-Pro',
-        ip: '192.168.1.45',
-        mac: '00:1E:C9:3A:78:B2',
-        vendor: 'HP',
-        type: 'Printer',
-        status: 'idle',
-        lastSeen: '1 hour ago'
-    },
-    {
-        id: '4',
-        name: 'RaspberryPi-IoT',
-        ip: '192.168.1.67',
-        mac: 'B8:27:EB:4C:91:2D',
-        vendor: 'Raspberry Pi',
-        type: 'IoT Device',
-        status: 'active',
-        lastSeen: '10 seconds ago'
-    },
-    {
-        id: '5',
-        name: 'Cisco-Switch-01',
-        ip: '192.168.1.1',
-        mac: '00:1A:A1:F2:34:B8',
-        vendor: 'Cisco',
-        type: 'Network Device',
-        status: 'active',
-        lastSeen: '1 minute ago'
-    },
-    {
-        id: '6',
-        name: 'iPhone-14',
-        ip: '192.168.1.89',
-        mac: '00:1C:B3:09:85:15',
-        vendor: 'Apple',
-        type: 'Mobile',
-        status: 'active',
-        lastSeen: '3 minutes ago'
-    },
-    {
-        id: '7',
-        name: 'ThinkPad-Lab-02',
-        ip: '192.168.1.102',
-        mac: '54:EE:75:2A:67:D9',
-        vendor: 'Lenovo',
-        type: 'Laptop',
-        status: 'idle',
-        lastSeen: '2 hours ago'
-    }
-];
-
-const mockEvents: Event[] = [
-    {
-        id: '1',
-        type: 'join',
-        message: 'New device connected – 192.168.1.23 (Galaxy-S24)',
-        timestamp: '2 minutes ago',
-        icon: <CheckCircle2 className="h-4 w-4 text-green-600" />
-    },
-    {
-        id: '2',
-        type: 'inactive',
-        message: 'Device became inactive – 192.168.1.102 (ThinkPad-Lab-02)',
-        timestamp: '1 hour ago',
-        icon: <AlertCircle className="h-4 w-4 text-yellow-600" />
-    },
-    {
-        id: '3',
-        type: 'reassign',
-        message: 'IP address reassigned – 192.168.1.89 to iPhone-14',
-        timestamp: '3 hours ago',
-        icon: <Radio className="h-4 w-4 text-blue-600" />
-    },
-    {
-        id: '4',
-        type: 'leave',
-        message: 'Device disconnected – 192.168.1.156',
-        timestamp: '5 hours ago',
-        icon: <AlertCircle className="h-4 w-4 text-gray-600" />
-    }
-];
-
-// Components
-const MetricCard: React.FC<MetricCardProps> = ({ title, value, description, icon, trend }) => (
-    <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">{title}</CardTitle>
-            <div className="text-slate-400">{icon}</div>
-        </CardHeader>
-        <CardContent>
-            <div className="text-2xl font-bold text-slate-900">{value}</div>
-            <p className="text-xs text-slate-500 mt-1">{description}</p>
-            {trend && (
-                <div className="flex items-center mt-2 text-xs text-green-600">
-                    <TrendingUp className="h-3 w-3 mr-1" />
-                    {trend}
-                </div>
-            )}
-        </CardContent>
-    </Card>
-);
-
-const DeviceTable: React.FC<{ devices: Device[] }> = ({ devices }) => (
-    <Card>
-        <CardHeader>
-            <CardTitle>Connected Devices</CardTitle>
-            <CardDescription>Currently monitored devices on the network</CardDescription>
-        </CardHeader>
-        <CardContent>
-            <div className="overflow-x-auto">
-                <table className="w-full">
-                    <thead>
-                        <tr className="border-b border-slate-200">
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Device Name</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">IP Address</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">MAC Address</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Vendor</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Type</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Status</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">Last Seen</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {devices.map((device) => (
-                            <tr
-                                key={device.id}
-                                className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
-                            >
-                                <td className="py-3 px-4 text-sm font-medium text-slate-900">{device.name}</td>
-                                <td className="py-3 px-4 text-sm text-slate-600 font-mono">{device.ip}</td>
-                                <td className="py-3 px-4 text-sm text-slate-600 font-mono">{device.mac}</td>
-                                <td className="py-3 px-4 text-sm text-slate-600">{device.vendor}</td>
-                                <td className="py-3 px-4 text-sm text-slate-600">{device.type}</td>
-                                <td className="py-3 px-4">
-                                    <Badge
-                                        variant={device.status === 'active' ? 'default' : 'secondary'}
-                                        className={device.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-600'}
-                                    >
-                                        {device.status}
-                                    </Badge>
-                                </td>
-                                <td className="py-3 px-4 text-sm text-slate-500">{device.lastSeen}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-            <div className="mt-4 flex items-center justify-between text-sm text-slate-500">
-                <span>Showing {devices.length} of {devices.length} devices</span>
-                <div className="flex gap-2">
-                    <button className="px-3 py-1 border border-slate-200 rounded hover:bg-slate-50">Previous</button>
-                    <button className="px-3 py-1 border border-slate-200 rounded hover:bg-slate-50">Next</button>
-                </div>
-            </div>
-        </CardContent>
-    </Card>
-);
-
-const NetworkCharts: React.FC = () => (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-            <CardHeader>
-                <CardTitle>ARP Requests per Minute</CardTitle>
-                <CardDescription>Network resolution activity over time</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="h-64 flex items-center justify-center bg-slate-50 rounded">
-                    <div className="text-center text-slate-400">
-                        <Activity className="h-12 w-12 mx-auto mb-2" />
-                        <p className="text-sm">Line chart visualization</p>
-                        <p className="text-xs">Peak: 145 req/min at 14:30</p>
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
-
-        <Card>
-            <CardHeader>
-                <CardTitle>Broadcast vs Unicast Traffic</CardTitle>
-                <CardDescription>Traffic distribution analysis</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="h-64 flex items-center justify-center bg-slate-50 rounded">
-                    <div className="text-center text-slate-400">
-                        <Radio className="h-12 w-12 mx-auto mb-2" />
-                        <p className="text-sm">Donut chart visualization</p>
-                        <p className="text-xs">Unicast: 87% | Broadcast: 13%</p>
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
-    </div>
-);
-
-const EventFeed: React.FC<{ events: Event[] }> = ({ events }) => (
-    <Card>
-        <CardHeader>
-            <CardTitle>Recent Events</CardTitle>
-            <CardDescription>Network activity and operational changes</CardDescription>
-        </CardHeader>
-        <CardContent>
-            <div className="space-y-4">
-                {events.map((event) => (
-                    <div key={event.id} className="flex items-start gap-3 pb-3 border-b border-slate-100 last:border-0">
-                        <div className="mt-0.5">{event.icon}</div>
-                        <div className="flex-1">
-                            <p className="text-sm text-slate-900">{event.message}</p>
-                            <p className="text-xs text-slate-500 mt-1">{event.timestamp}</p>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </CardContent>
-    </Card>
-);
-
-// Main Dashboard Component
 const Dashboard: React.FC = () => {
-    const activeDevices = mockDevices.filter(d => d.status === 'active').length;
-    const idleDevices = mockDevices.filter(d => d.status === 'idle').length;
+  const { devices, events, metrics, activeDevices, idleDevices, isConnected, arpRate } = useDashboardData();
+  const [arpHistory, setArpHistory] = useState<ArpHistoryPoint[]>([]);
 
-    return (
-        <>
-            {/* Metrics Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <MetricCard
-                    title="Active Devices"
-                    value={activeDevices}
-                    description="Currently connected"
-                    icon={<Wifi className="h-4 w-4" />}
-                    trend="+2 from yesterday"
-                />
-                <MetricCard
-                    title="New Devices (Today)"
-                    value={2}
-                    description="First-time connections"
-                    icon={<Server className="h-4 w-4" />}
-                />
-                <MetricCard
-                    title="Inactive Devices"
-                    value={idleDevices}
-                    description="No recent activity"
-                    icon={<AlertCircle className="h-4 w-4" />}
-                />
-                <MetricCard
-                    title="Network Status"
-                    value="Healthy"
-                    description="All systems operational"
-                    icon={<CheckCircle2 className="h-4 w-4" />}
-                />
-            </div>
+  // Track ARP history for the line chart
+  useEffect(() => {
+    if (!metrics) return;
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <MetricCard
-                    title="ARP Traffic Rate"
-                    value="87 req/min"
-                    description="Current resolution activity"
-                    icon={<Activity className="h-4 w-4" />}
-                />
-                <MetricCard
-                    title="Broadcast Ratio"
-                    value="13%"
-                    description="Of total network traffic"
-                    icon={<Radio className="h-4 w-4" />}
-                />
-            </div>
+    const newPoint: ArpHistoryPoint = {
+      timestamp: new Date().toLocaleTimeString(),
+      arpRequests: arpRate, // use requests per minute
+    };
 
-            <NetworkCharts />
+    setArpHistory(prev => [...prev.slice(-29), newPoint]); // keep last 30 points
+  }, [arpRate]);
 
-            <DeviceTable devices={mockDevices} />
+  // Broadcast ratio calculation
+  const totalPackets = (metrics?.broadcastPackets ?? 0) + (metrics?.unicastPackets ?? 0);
+  const broadcastRatio =
+    totalPackets > 0 ? Math.round(((metrics?.broadcastPackets ?? 0) / totalPackets) * 100) : 0;
 
-            <EventFeed events={mockEvents} />
+  return (
+    <div className="p-4">
+      {/* Connection Status Banner */}
+      <div
+        className={`mb-4 p-3 rounded flex items-center gap-2 ${
+          isConnected ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+        }`}
+      >
+        {isConnected ? (
+          <>
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
+            <span className="text-sm text-green-700">WebSocket Connected</span>
+          </>
+        ) : (
+          <>
+            <WifiOff className="h-4 w-4 text-red-600" />
+            <span className="text-sm text-red-700">
+              WebSocket Disconnected - Waiting for backend at ws://localhost:8000/ws/frontend
+            </span>
+          </>
+        )}
+      </div>
 
-        </>
-    );
+      {/* Top Metric Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard
+          title="Active Devices"
+          value={activeDevices}
+          description="Currently connected"
+          icon={<Wifi className="h-4 w-4" />}
+          trend={`${activeDevices - idleDevices >= 0 ? `+${activeDevices - idleDevices}` : activeDevices - idleDevices} from yesterday`}
+        />
+        <MetricCard
+          title="New Devices (Today)"
+          value={(metrics?.totalDevices ?? 0) - activeDevices}
+          description="First-time connections"
+          icon={<Server className="h-4 w-4" />}
+        />
+        <MetricCard
+          title="Inactive Devices"
+          value={idleDevices}
+          description="No recent activity"
+          icon={<AlertCircle className="h-4 w-4" />}
+        />
+        <MetricCard
+          title="Network Status"
+          value="Healthy"
+          description="All systems operational"
+          icon={<CheckCircle2 className="h-4 w-4" />}
+        />
+      </div>
+
+      {/* Secondary Metric Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <MetricCard
+          title="ARP Traffic Rate"
+          value={`${arpRate} req/min`}
+          description="Current resolution activity"
+          icon={<Activity className="h-4 w-4" />}
+        />
+        <MetricCard
+          title="Broadcast Ratio"
+          value={`${broadcastRatio}%`}
+          description="Of total network traffic"
+          icon={<Radio className="h-4 w-4" />}
+        />
+      </div>
+
+      {/* Charts */}
+      <NetworkCharts
+        metrics={{
+          arpRequests: metrics?.arpRequests ?? 0,
+          broadcastPackets: metrics?.broadcastPackets ?? 0,
+          unicastPackets: metrics?.unicastPackets ?? 0,
+        }}
+        history={arpHistory}
+      />
+
+      {/* Tables */}
+      <DeviceTable devices={devices} pageSize={3} />
+      <EventFeed events={events} pageSize={5} /> {/* Pagination enabled */}
+    </div>
+  );
 };
 
 export default Dashboard;
