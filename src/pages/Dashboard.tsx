@@ -12,25 +12,36 @@ interface ArpHistoryPoint {
 }
 
 const Dashboard: React.FC = () => {
-  const { devices, events, metrics, activeDevices, idleDevices, isConnected, arpRate } = useDashboardData();
+  const {
+    devices,
+    events,
+    metrics,
+    activeDevices,
+    newDevicesToday,
+    idleDevices,
+    isConnected,
+    arpRate,
+  } = useDashboardData();
+
   const [arpHistory, setArpHistory] = useState<ArpHistoryPoint[]>([]);
 
-  // Track ARP history for the line chart
+  // Track ARP history for charts
   useEffect(() => {
-    if (!metrics) return;
-
     const newPoint: ArpHistoryPoint = {
       timestamp: new Date().toLocaleTimeString(),
-      arpRequests: arpRate, // use requests per minute
+      arpRequests: arpRate,
     };
 
-    setArpHistory(prev => [...prev.slice(-29), newPoint]); // keep last 30 points
+    setArpHistory(prev => [...prev.slice(-29), newPoint]); // Keep last 30 points
   }, [arpRate]);
 
   // Broadcast ratio calculation
   const totalPackets = (metrics?.broadcastPackets ?? 0) + (metrics?.unicastPackets ?? 0);
   const broadcastRatio =
-    totalPackets > 0 ? Math.round(((metrics?.broadcastPackets ?? 0) / totalPackets) * 100) : 0;
+  totalPackets > 0
+    ? ((metrics?.broadcastPackets ?? 0) / totalPackets * 100).toFixed(2) // keep 2 decimals
+    : "0.00";
+
 
   return (
     <div className="p-4">
@@ -62,19 +73,21 @@ const Dashboard: React.FC = () => {
           value={activeDevices}
           description="Currently connected"
           icon={<Wifi className="h-4 w-4" />}
-          trend={`${activeDevices - idleDevices >= 0 ? `+${activeDevices - idleDevices}` : activeDevices - idleDevices} from yesterday`}
+          trend={`${activeDevices - idleDevices >= 0 ? `+${activeDevices - idleDevices}` : activeDevices - idleDevices} since last update`}
         />
         <MetricCard
-          title="New Devices (Today)"
-          value={(metrics?.totalDevices ?? 0) - activeDevices}
-          description="First-time connections"
+          title="New Devices Today"
+          value={newDevicesToday}
+          description="First-time connections today"
           icon={<Server className="h-4 w-4" />}
+          trend={`${newDevicesToday} added today`}
         />
         <MetricCard
           title="Inactive Devices"
           value={idleDevices}
           description="No recent activity"
           icon={<AlertCircle className="h-4 w-4" />}
+          trend={`${idleDevices} devices idle`}
         />
         <MetricCard
           title="Network Status"
@@ -89,7 +102,7 @@ const Dashboard: React.FC = () => {
         <MetricCard
           title="ARP Traffic Rate"
           value={`${arpRate} req/min`}
-          description="Current resolution activity"
+          description="Current ARP resolution activity"
           icon={<Activity className="h-4 w-4" />}
         />
         <MetricCard
@@ -111,8 +124,8 @@ const Dashboard: React.FC = () => {
       />
 
       {/* Tables */}
-      <DeviceTable devices={devices} pageSize={3} />
-      <EventFeed events={events} pageSize={5} /> {/* Pagination enabled */}
+      <DeviceTable devices={devices} pageSize={5} /> {/* Show more devices */}
+      <EventFeed events={events} pageSize={10} /> {/* Show more events */}
     </div>
   );
 };
