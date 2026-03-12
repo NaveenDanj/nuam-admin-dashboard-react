@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Search,
   RefreshCw,
@@ -26,6 +26,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+
+import { useIpAddressManagement } from "@/hooks/useIpAddressManagement"
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -526,7 +528,13 @@ const DeviceDetailsModal: React.FC<DeviceDetailsModalProps> = ({ device, onClose
 // ============================================================================
 
 export default function IPAddressManagement() {
-  const [devices, setDevices] = useState<IPDevice[]>(mockDevices);
+  const {
+    networkStats,
+    devices: wsDevices,
+    alerts: wsAlerts
+  } = useIpAddressManagement()
+
+  const [devices, setDevices] = useState<IPDevice[]>([])
   const [selectedDevice, setSelectedDevice] = useState<IPDevice | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'All' | 'DHCP' | 'Static'>('All');
@@ -538,14 +546,20 @@ export default function IPAddressManagement() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Network stats calculation
-  const stats: NetworkStats = {
-    totalIPs: 254,
-    inUse: devices.length,
-    available: 254 - devices.length,
-    conflicts: devices.filter((d) => d.riskStatus === 'Conflict').length,
-    unauthorized: devices.filter((d) => d.riskStatus === 'Unauthorized').length,
-    poolRange: '192.168.1.0/24',
-  };
+  const stats: NetworkStats = networkStats ?? {
+    totalIPs: 0,
+    inUse: 0,
+    available: 0,
+    conflicts: 0,
+    unauthorized: 0,
+    poolRange: "-"
+  }
+
+  useEffect(() => {
+  if (wsDevices) {
+    setDevices(wsDevices)
+  }
+  }, [wsDevices])
 
   // Filter and search logic
   const filteredDevices = useMemo(() => {
@@ -652,7 +666,7 @@ export default function IPAddressManagement() {
           <IPUtilizationBar stats={stats} />
         </div>
         <div>
-          <IPAlertsPanel alerts={mockAlerts} />
+          <IPAlertsPanel alerts={wsAlerts ?? []} />
         </div>
       </div>
 
