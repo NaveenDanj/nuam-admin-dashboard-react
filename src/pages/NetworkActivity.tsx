@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   RefreshCw,
   Activity,
@@ -23,6 +23,7 @@ import InsightsPanel from '@/components/network/InsightsPanel';
 // Main Network Activity Page Component
 const NetworkActivityPage: React.FC = () => {
   const [timeRange, setTimeRange] = useState('1h');
+  const [lastUpdated, setLastUpdated] = useState<string>(new Date().toLocaleTimeString());
   
   // Use our custom hook
   const {
@@ -41,18 +42,40 @@ const NetworkActivityPage: React.FC = () => {
     refreshData
   } = useNetworkActivityPageData(timeRange);
 
+  // Update last updated timestamp when data changes
+  useEffect(() => {
+    if (!isLoading) {
+      setLastUpdated(new Date().toLocaleTimeString());
+    }
+  }, [trafficData, devices, events, isLoading]);
+
   // Add icons to events and limit to most recent 100 for pagination
   const eventsWithIcons = events.slice(0, 100).map(event => ({
     ...event,
     icon: event.type === 'active' ? <CheckCircle2 className="h-4 w-4 text-green-600" /> :
           event.type === 'spike' ? <TrendingUp className="h-4 w-4 text-blue-600" /> :
           event.type === 'idle' ? <AlertCircle className="h-4 w-4 text-yellow-600" /> :
-          <Activity className="h-4 w-4 text-slate-600" />
+          event.type === 'load_change' ? <Activity className="h-4 w-4 text-purple-600" /> :
+          <Activity className="h-4 w-4 text-slate-600" />,
+    // Add ARP rate to load_change events
+    ...(event.type === 'load_change' && {
+      arpRate: {
+        value: `${avgArpRate}/min`,
+        trend: avgArpRate > 100 ? 'up' : avgArpRate < 40 ? 'down' : 'stable',
+        trendValue: avgArpRate > 100 ? 'High' : avgArpRate < 40 ? 'Low' : 'Normal'
+      }
+    })
   }));
 
   // Handle refresh button click
   const handleRefresh = () => {
     refreshData();
+    setLastUpdated(new Date().toLocaleTimeString());
+  };
+
+  // Handle time range change
+  const handleTimeRangeChange = (value: string) => {
+    setTimeRange(value);
   };
 
   if (isLoading) {
@@ -76,7 +99,7 @@ const NetworkActivityPage: React.FC = () => {
         </div>
         
         <div className="flex items-center gap-3">
-          <Select value={timeRange} onValueChange={setTimeRange}>
+          <Select value={timeRange} onValueChange={handleTimeRangeChange}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder="Time range" />
             </SelectTrigger>
@@ -87,8 +110,8 @@ const NetworkActivityPage: React.FC = () => {
             </SelectContent>
           </Select>
           
-          <Button onClick={handleRefresh} variant="outline" size="sm">
-            <RefreshCw className="h-4 w-4 mr-2" />
+          <Button onClick={handleRefresh} variant="outline" size="sm" disabled={isLoading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         </div>
@@ -111,8 +134,9 @@ const NetworkActivityPage: React.FC = () => {
             size="sm" 
             className="bg-white border-yellow-300 text-yellow-700 hover:bg-yellow-50"
             onClick={handleRefresh}
+            disabled={isLoading}
           >
-            <RefreshCw className="h-3 w-3 mr-2" />
+            <RefreshCw className={`h-3 w-3 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Retry Connection
           </Button>
         </div>
@@ -131,8 +155,9 @@ const NetworkActivityPage: React.FC = () => {
             size="sm" 
             className="bg-white border-red-300 text-red-700 hover:bg-red-50"
             onClick={handleRefresh}
+            disabled={isLoading}
           >
-            <RefreshCw className="h-3 w-3 mr-2" />
+            <RefreshCw className={`h-3 w-3 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Retry
           </Button>
         </div>
@@ -169,9 +194,18 @@ const NetworkActivityPage: React.FC = () => {
       {/* Device Activity Table */}
       <DeviceActivityTable devices={devices} />
 
-      {/* Bottom Section: Activity Feed and Insights */}
+      Bottom Section: Activity Feed and Insights
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ActivityEventFeed events={eventsWithIcons} pageSize={10} />
+        <ActivityEventFeed 
+          events={eventsWithIcons} 
+          pageSize={10}
+          currentArpRate={{
+            value: `${avgArpRate}/min`,
+            trend: avgArpRate > 100 ? 'up' : avgArpRate < 40 ? 'down' : 'stable',
+            trendValue: avgArpRate > 100 ? '+15% from average' : 
+                       avgArpRate < 40 ? '-10% from average' : 'Within normal range'
+          }}
+        />
         <InsightsPanel insights={insights} />
       </div>
 
@@ -179,13 +213,21 @@ const NetworkActivityPage: React.FC = () => {
       <div className="flex items-center justify-between text-xs text-slate-400">
         <div className="flex items-center gap-2">
           <div className={`h-2 w-2 rounded-full ${
-            isConnected ? 'bg-green-500' : 'bg-red-500'
+            isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'
           }`} />
           <span>
             {isConnected ? 'Connected to live data' : 'Using mock data'}
           </span>
+          {isConnected && <span className="text-green-600 text-xs">● Live</span>}
         </div>
-        <span>Last updated: {new Date().toLocaleTimeString()}</span>
+        <div className="flex items-center gap-4">
+          <span>Last updated: {lastUpdated}</span>
+          {trafficData.length > 0 && (
+            <span className="text-slate-500">
+              {trafficData.length} data points
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

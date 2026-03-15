@@ -195,7 +195,6 @@ export const useDashboardData = () => {
         setDashboardStats({
           totalDevices: data.dashboard_stats.total_devices,
           activeDevices: data.dashboard_stats.active_devices,
-          // TODO: FIX THE database data gathering issue
           idleDevices: data.dashboard_stats.idle_devices,
           newDevicesToday: data.dashboard_stats.new_devices_today,
         });

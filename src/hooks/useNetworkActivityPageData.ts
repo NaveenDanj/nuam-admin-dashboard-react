@@ -436,7 +436,7 @@ export const useNetworkActivityPageData = (timeRange: string = '1h') => {
         const metricEvent: ActivityEvent = {
           id: data.event.meta.sequence.toString(),
           type: 'load_change',
-          message: `Network load: ${networkMetrics.activeDevices} active devices, ${formatNumber(packetsPerSecond)} pps, ARP: ${arpRate}/min`,
+          message: `Network load: ${networkMetrics.activeDevices} active devices, ${formatNumber(packetsPerSecond)} pps`,
           timestamp: new Date(data.event.meta.timestamp).toLocaleTimeString()
         };
         setEvents(prev => [metricEvent, ...prev].slice(0, 50));
