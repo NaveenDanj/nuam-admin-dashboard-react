@@ -7,7 +7,7 @@ interface MetricsContainerProps {
   metrics: MetricCardData[];
   currentPacketsPerSecond: number;
   avgArpRate: number;
-  activeDevicesCount: number;
+  activeDevicesCount: number; // This is the backend value
   devices: any[];
   distribution: {
     broadcast: number;
@@ -26,7 +26,8 @@ const MetricsContainer: React.FC<MetricsContainerProps> = ({
   currentPacketsPerSecond,
   avgArpRate,
   devices,
-  distribution
+  distribution,
+  activeDevicesCount // Use the backend value directly
 }) => {
   // Calculate derived metrics
   const derivedMetrics = useMemo(() => {
@@ -49,9 +50,6 @@ const MetricsContainer: React.FC<MetricsContainerProps> = ({
       networkLoadTrend = 'down';
     }
 
-    // Calculate active devices
-    const activeDevices = devices.filter(d => d.activityLevel !== 'low').length;
-
     return {
       packetsPerSecond: {
         value: formatNumber(currentPacketsPerSecond),
@@ -60,10 +58,10 @@ const MetricsContainer: React.FC<MetricsContainerProps> = ({
                    currentPacketsPerSecond < 700 ? '-8% from baseline' : 'Within normal range'
       },
       activeDevices: {
-        value: activeDevices,
-        trend: activeDevices > 5 ? 'up' : activeDevices < 2 ? 'down' : 'stable',
-        trendValue: activeDevices > 5 ? '+2 from average' : 
-                   activeDevices < 2 ? '-1 from average' : 'No change'
+        value: activeDevicesCount, // Use backend value directly
+        trend: activeDevicesCount > 5 ? 'up' : activeDevicesCount < 2 ? 'down' : 'stable',
+        trendValue: activeDevicesCount > 5 ? '+2 from average' : 
+                   activeDevicesCount < 2 ? '-1 from average' : 'No change'
       },
       arpRate: {
         value: `${avgArpRate}/min`,
@@ -90,7 +88,7 @@ const MetricsContainer: React.FC<MetricsContainerProps> = ({
                    networkLoad === 'Low' ? 'Decreasing' : 'Stable'
       }
     };
-  }, [currentPacketsPerSecond, avgArpRate, devices, distribution]);
+  }, [currentPacketsPerSecond, avgArpRate, activeDevicesCount, distribution]);
 
   // Icons for metrics
   const icons = [
