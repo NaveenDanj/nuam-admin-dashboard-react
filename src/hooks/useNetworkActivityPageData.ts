@@ -531,7 +531,7 @@ export const useNetworkActivityPageData = (timeRange: string = '1h') => {
       ));
 
       console
-      // console.log("Updated metrics:", metrics);
+      console.log("Updated metrics:", metrics);
 
       setInsights(generateInsights(networkMetrics, devices));
     }
