@@ -30,8 +30,11 @@ export interface DeviceActivity {
   type: 'laptop' | 'mobile' | 'printer' | 'iot' | 'network';
   packetsSent: number;
   packetsReceived: number;
+  dataSent?: number;
+  dataReceived?: number;
   activityLevel: 'low' | 'medium' | 'high';
   lastActive: string;
+  lastSeen?: string;
 }
 
 export interface ActivityEvent {
@@ -65,6 +68,29 @@ export interface NetworkMetrics {
   arpReplies: number;
 }
 
+
+export interface PacketDetails {
+  packetType: string;
+  totalPackets: number;
+  packetsPerSecond: number;
+  percentage: number;
+  trend?: 'up' | 'down' | 'stable';
+}
+
+export interface PacketTypeData {
+  type: string;
+  count: number;
+  rate: number;
+}
+
+// Add this helper function:
+const formatDataRate = (bytesPerSec: number): string => {
+  if (bytesPerSec >= 1000000000) return (bytesPerSec / 1000000000).toFixed(1) + ' GB';
+  if (bytesPerSec >= 1000000) return (bytesPerSec / 1000000).toFixed(1) + ' MB';
+  if (bytesPerSec >= 1000) return (bytesPerSec / 1000).toFixed(1) + ' KB';
+  return bytesPerSec + ' B';
+};
+
 // Helper function to format numbers
 const formatNumber = (num: number): string => {
   if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
@@ -72,11 +98,78 @@ const formatNumber = (num: number): string => {
   return num.toString();
 };
 
+// Helper to calculate packet details
+const calculatePacketDetails = (
+  currentPackets: {
+    broadcast: number;
+    unicast: number;
+    arpRequests: number;
+    arpReplies: number;
+    total: number;
+  },
+  previousPackets?: {
+    broadcast: number;
+    unicast: number;
+    arpRequests: number;
+    arpReplies: number;
+    total: number;
+  },
+  timeDiffSec: number = 1
+): PacketDetails[] => {
+  
+  const calculateRate = (current: number, previous?: number): number => {
+    if (!previous || timeDiffSec <= 0) return 0;
+    const delta = Math.max(0, current - previous);
+    return Number((delta / timeDiffSec).toFixed(2));
+  };
+
+  const broadcastRate = calculateRate(currentPackets.broadcast, previousPackets?.broadcast);
+  const unicastRate = calculateRate(currentPackets.unicast, previousPackets?.unicast);
+  const arpRequestRate = calculateRate(currentPackets.arpRequests, previousPackets?.arpRequests);
+  const arpReplyRate = calculateRate(currentPackets.arpReplies, previousPackets?.arpReplies);
+  const totalRate = calculateRate(currentPackets.total, previousPackets?.total);
+
+  const details: PacketDetails[] = [
+    {
+      packetType: 'Broadcast',
+      totalPackets: currentPackets.broadcast,
+      packetsPerSecond: broadcastRate,
+      percentage: currentPackets.total > 0 ? Number(((currentPackets.broadcast / currentPackets.total) * 100).toFixed(1)) : 0,
+      trend: broadcastRate > 100 ? 'up' : broadcastRate < 10 ? 'down' : 'stable'
+    },
+    {
+      packetType: 'Unicast',
+      totalPackets: currentPackets.unicast,
+      packetsPerSecond: unicastRate,
+      percentage: currentPackets.total > 0 ? Number(((currentPackets.unicast / currentPackets.total) * 100).toFixed(1)) : 0,
+      trend: unicastRate > 1000 ? 'up' : unicastRate < 100 ? 'down' : 'stable'
+    },
+    {
+      packetType: 'ARP Requests',
+      totalPackets: currentPackets.arpRequests,
+      packetsPerSecond: arpRequestRate,
+      percentage: currentPackets.total > 0 ? Number(((currentPackets.arpRequests / currentPackets.total) * 100).toFixed(1)) : 0,
+      trend: arpRequestRate > 50 ? 'up' : arpRequestRate < 5 ? 'down' : 'stable'
+    },
+    {
+      packetType: 'ARP Replies',
+      totalPackets: currentPackets.arpReplies,
+      packetsPerSecond: arpReplyRate,
+      percentage: currentPackets.total > 0 ? Number(((currentPackets.arpReplies / currentPackets.total) * 100).toFixed(1)) : 0,
+      trend: arpReplyRate > 50 ? 'up' : arpReplyRate < 5 ? 'down' : 'stable'
+    }
+  ];
+
+  return details;
+};
+
 // Helper to determine activity level based on packet count
-const determineActivityLevel = (packetsSent: number, packetsReceived: number): 'low' | 'medium' | 'high' => {
+const determineActivityLevel = (packetsSent: number, packetsReceived: number,dataSent?: number, dataReceived?: number )
+: 'low' | 'medium' | 'high' => {
   const totalPackets = packetsSent + packetsReceived;
-  if (totalPackets > 50000) return 'high';
-  if (totalPackets > 10000) return 'medium';
+  const totalData = (dataSent || 0) + (dataReceived || 0);
+   if (totalPackets > 50000 || totalData > 10000000) return 'high';
+  if (totalPackets > 10000 || totalData > 1000000) return 'medium';
   return 'low';
 };
 
@@ -184,6 +277,20 @@ export const useNetworkActivityPageData = (timeRange: string = '1h') => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [currentDataRate, setCurrentDataRate] = useState<number>(0);
+  const [packetDetails, setPacketDetails] = useState<PacketDetails[]>([]);
+const [packetTypeBreakdown, setPacketTypeBreakdown] = useState<PacketTypeData[]>([]);
+
+
+// Add this ref to track packet history
+const packetHistoryRef = useRef<{
+  timestamp: number;
+  broadcastPackets: number;
+  unicastPackets: number;
+  arpRequests: number;
+  arpReplies: number;
+  totalPackets: number;
+}[]>([]);
 
   // Track previous metric for rate calculations
   const prevMetricsRef = useRef<{
@@ -193,6 +300,12 @@ export const useNetworkActivityPageData = (timeRange: string = '1h') => {
     broadcastPackets: number;
     unicastPackets: number;
   } | null>(null);
+
+  const prevDataRef = useRef<{
+  timestamp: number;
+  dataSent: number;
+  dataReceived: number;
+} | null>(null);
 
   // Track previous ARP for rate calculation
   const prevArpRef = useRef<{
@@ -286,6 +399,17 @@ export const useNetworkActivityPageData = (timeRange: string = '1h') => {
         trend: networkLoadTrend,
         trendValue: networkLoad === 'High' ? 'Increasing' :
           networkLoad === 'Low' ? 'Decreasing' : 'Stable'
+      },
+
+      // Add this card to the returned array in calculateMetricsCards:
+      {
+        title: 'Data Transfer Rate',
+        value: `${formatDataRate(currentDataRate)}/s`,
+        description: 'Current network throughput',
+        icon: undefined,
+        trend: currentDataRate > 1000000 ? 'up' : currentDataRate < 100000 ? 'down' : 'stable',
+        trendValue: currentDataRate > 1000000 ? 'High bandwidth' : 
+                    currentDataRate < 100000 ? 'Low bandwidth' : 'Normal'
       }
     ];
   }, []);
@@ -388,23 +512,82 @@ export const useNetworkActivityPageData = (timeRange: string = '1h') => {
         setActiveDevicesCount(m.active_devices);
 
 
+        if (data.topology?.devices) {
+        const incomingDevices = data.topology.devices.map((d: any) => ({
+          id: d.id?.toString() || d.device_id || d.mac_address,
+          name: d.name || d.hostname || "Unknown",
+          ip: d.ip || d.ip_address || "-",
+          device_id: d.device_id || "-",
+          vendor: d.vendor || "-",
+          type: mapDeviceType(d.type || d.device_type || "unknown"),
+          packetsSent: d.data_sent || d.packets_sent || 0,  
+          packetsReceived: d.data_received || d.packets_received || 0,
+          activityLevel: determineActivityLevel(
+            d.data_sent || d.packets_sent || 0,
+            d.data_received || d.packets_received || 0
+          ),
+          lastSeen: new Date().toISOString(),
+          lastActive: 'Just now'
+        }));
+
+        setDevices(prev => {
+          const updated = [...prev];
+          incomingDevices.forEach((device: DeviceActivity) => {
+            const index = updated.findIndex(d => d.id === device.id);
+            if (index >= 0) {
+              updated[index] = { ...updated[index], ...device };
+            } else {
+              updated.unshift(device);
+            }
+          });
+          return updated.slice(0, 100);
+        });
+      }
+
+
 
         // Calculate packets per second
         let packetsPerSecond = 0;
 
         if (prevMetricsRef.current) {
-          const timeDiffMs = metricTime - prevMetricsRef.current.timestamp;
+          const timeDiffMs = Date.now()- prevMetricsRef.current.timestamp ;
           const timeDiffSec = timeDiffMs / 1000;
-          // console.log("Time difference for pps calculation (seconjjds):", prevMetricsRef.current.timestamp,);
 
           if (timeDiffSec > 0) {
-            // console.log("packet", m.total_packets)
-            const currentTotalPackets = m.total_packets;
-            const packetsDiff = currentTotalPackets - prevMetricsRef.current.packets;
-            packetsPerSecond = Math.round(Math.max(0, packetsDiff / timeDiffSec));
+            console.log("packet", m.total_packets)
+            const currentTotalPackets = m.total_packets || 0;
+            // Ensure we don't get negative values due to counter resets
+            if (currentTotalPackets >= 0) {
+              packetsPerSecond = Number((currentTotalPackets/ timeDiffSec).toFixed(2));
+            } else {
+              // Handle counter reset (packets counter might have reset)
+              packetsPerSecond = 0;
+            }
+            
             setCurrentPacketsPerSecond(packetsPerSecond);
           }
         }
+
+        // Calculate data rate
+        if (prevDataRef.current) {
+          const timeDiffMs = Date.now() - prevDataRef.current.timestamp;
+          const timeDiffSec = timeDiffMs / 1000;
+          
+          if (timeDiffSec > 0) {
+            const dataSentDelta = networkMetrics.dataSent - prevDataRef.current.dataSent;
+            const dataReceivedDelta = networkMetrics.dataReceived - prevDataRef.current.dataReceived;
+            const totalDataDelta = dataSentDelta + dataReceivedDelta;
+            const dataRate = totalDataDelta / timeDiffSec;
+            setCurrentDataRate(dataRate);
+          }
+        }
+
+        // Update prevDataRef
+        prevDataRef.current = {
+          timestamp: metricTime,
+          dataSent: networkMetrics.dataSent,
+          dataReceived: networkMetrics.dataReceived
+        };
 
         // Calculate ARP rate
         if (prevArpRef.current) {
@@ -427,6 +610,54 @@ export const useNetworkActivityPageData = (timeRange: string = '1h') => {
           broadcastPackets: networkMetrics.broadcastPackets,
           unicastPackets: networkMetrics.unicastPackets
         };
+
+
+
+        // Calculate packet details
+        const currentPacketCounts = {
+          broadcast: networkMetrics.broadcastPackets,
+          unicast: networkMetrics.unicastPackets,
+          arpRequests: networkMetrics.arpRequests,
+          arpReplies: networkMetrics.arpReplies,
+          total: networkMetrics.broadcastPackets + networkMetrics.unicastPackets
+        };
+
+        // Get previous packet counts from history
+        const lastPacketEntry = packetHistoryRef.current[packetHistoryRef.current.length - 1];
+        const previousPacketCounts = lastPacketEntry ? {
+          broadcast: lastPacketEntry.broadcastPackets,
+          unicast: lastPacketEntry.unicastPackets,
+          arpRequests: lastPacketEntry.arpRequests,
+          arpReplies: lastPacketEntry.arpReplies,
+          total: lastPacketEntry.totalPackets
+        } : undefined;
+
+        // Calculate time difference for rates
+        const timeDiffSec = prevMetricsRef.current ? 
+          (metricTime - prevMetricsRef.current.timestamp) / 1000 : 1;
+
+        const newPacketDetails = calculatePacketDetails(
+          currentPacketCounts,
+          previousPacketCounts,
+          timeDiffSec
+        );
+
+        setPacketDetails(newPacketDetails);
+
+        // Update packet history
+        packetHistoryRef.current = [
+          ...packetHistoryRef.current,
+          {
+            timestamp: metricTime,
+            broadcastPackets: networkMetrics.broadcastPackets,
+            unicastPackets: networkMetrics.unicastPackets,
+            arpRequests: networkMetrics.arpRequests,
+            arpReplies: networkMetrics.arpReplies,
+            totalPackets: currentPacketCounts.total
+          }
+        ].slice(-10); // Keep last 10 entries for rate calculations
+
+
 
         // Add traffic data point
         const trafficPoint: TrafficDataPoint = {
@@ -451,47 +682,6 @@ export const useNetworkActivityPageData = (timeRange: string = '1h') => {
 
         setIsLoading(false);
       }
-
-      // Handle dashboard stats for device list and active devices count
-
-      // if (data.dashboard_stats) {
-      //   // Update active devices count directly from dashboard_stats
-      //   if (data.dashboard_stats.active_devices !== undefined) {
-      //     setActiveDevicesCount(m.active_devices);
-      //   }
-
-      //   // Update total devices from dashboard_stats if available
-      //   if (data.dashboard_stats.total_devices !== undefined) {
-      //     setTotalDevicesCount(data.dashboard_stats.total_devices);
-      //   }
-
-      //   // Process devices array if present
-      //   if (data.dashboard_stats.devices && Array.isArray(data.dashboard_stats.devices)) {
-      //     const incomingDevices = data.dashboard_stats.devices.map((d: any) => ({
-      //       id: d.id || d.mac || d.mac_address,
-      //       name: d.name || d.hostname || 'Unknown',
-      //       ip: d.ip || d.ip_address || '-',
-      //       type: mapDeviceType(d.type || d.device_type || 'unknown'),
-      //       packetsSent: d.packets_sent || 0,
-      //       packetsReceived: d.packets_received || 0,
-      //       activityLevel: determineActivityLevel(d.packets_sent || 0, d.packets_received || 0),
-      //       lastActive: d.last_seen ? new Date(d.last_seen).toLocaleString() : 'Unknown'
-      //     }));
-
-      //     setDevices(prev => {
-      //       const updated = [...prev];
-      //       incomingDevices.forEach((device: DeviceActivity) => {
-      //         const index = updated.findIndex(d => d.id === device.id);
-      //         if (index >= 0) {
-      //           updated[index] = { ...updated[index], ...device };
-      //         } else {
-      //           updated.unshift(device);
-      //         }
-      //       });
-      //       return updated.slice(0, 100);
-      //     });
-      //   }
-      // }
 
       // Handle traffic spike events
       if (data.event?.type === "METRIC" && data.event?.subtype === "TRAFFIC_SPIKE") {
@@ -531,11 +721,12 @@ export const useNetworkActivityPageData = (timeRange: string = '1h') => {
       ));
 
       console
-      console.log("Updated metrics:", metrics);
+      // console.log("Updated metrics:", metrics);
 
       setInsights(generateInsights(networkMetrics, devices));
     }
-  }, [currentPacketsPerSecond, devices, arpRate, distribution, activeDevicesCount, trafficData, totalDevicesCount, calculateMetricsCards]);
+  }, [currentPacketsPerSecond, devices, arpRate, distribution, activeDevicesCount,
+    trafficData, totalDevicesCount, calculateMetricsCards, currentDataRate, packetDetails]);
 
   // Poll connection status
   useEffect(() => {
@@ -557,18 +748,19 @@ export const useNetworkActivityPageData = (timeRange: string = '1h') => {
 
   return {
     metrics,
-    trafficData,
-    devices,
-    events,
-    distribution,
-    insights,
-    currentPacketsPerSecond,
-    avgArpRate: arpRate,
-    activeDevicesCount,
-    totalDevicesCount,
-    isLoading,
-    error,
-    isConnected,
-    refreshData
+  trafficData,
+  devices,
+  events,
+  distribution,
+  insights,
+  currentPacketsPerSecond,
+  avgArpRate: arpRate,
+  activeDevicesCount,
+  totalDevicesCount,
+  isLoading,
+  error,
+  isConnected,
+  refreshData,
+  packetDetails,
   };
 };
