@@ -19,6 +19,7 @@ import TrafficDistributionChart from '@/components/network/TrafficDistributionCh
 import DeviceActivityTable from '@/components/network/DeviceActivityTable';
 import ActivityEventFeed from '@/components/network/ActivityEventFeed';
 import InsightsPanel from '@/components/network/InsightsPanel';
+import PacketTypeTable from '@/components/network/PacketTypeTable'; // Add this import
 
 // Main Network Activity Page Component
 const NetworkActivityPage: React.FC = () => {
@@ -36,11 +37,28 @@ const NetworkActivityPage: React.FC = () => {
     currentPacketsPerSecond,
     avgArpRate,
     activeDevicesCount,
+    packetDetails, // Make sure this is exposed from your hook
+    totalPacketsCount,
     isLoading,
     error,
     isConnected,
     refreshData
   } = useNetworkActivityPageData(timeRange);
+
+  // Calculate total packets from packet details
+  const totalPackets = packetDetails?.reduce((sum, detail) => sum + detail.totalPackets, 0) || 0;
+
+  // Get metrics for advanced packet types
+  const packetMetrics = trafficData.length > 0 ? {
+    ip_packets: trafficData.reduce((sum, d) => sum + (d.arpRequests + d.arpReplies), 0), // Example calculation
+    tcp_packets: 0, // These would come from your actual data
+    udp_packets: 0,
+    icmp_packets: 0,
+    dns_queries: 0,
+    dhcp_packets: 0,
+    http_requests: 0,
+    tls_handshakes: 0
+  } : undefined;
 
   // Update last updated timestamp when data changes
   useEffect(() => {
@@ -191,10 +209,18 @@ const NetworkActivityPage: React.FC = () => {
       {/* ARP Activity Chart */}
       <ARPActivityChart data={trafficData} />
 
+      {/* Packet Type Distribution Table - This will show above Device Activity */}
+      <PacketTypeTable 
+        packetDetails={packetDetails || []}
+        totalPackets={totalPackets}
+        currentPacketsPerSecond={currentPacketsPerSecond}
+        metrics={packetMetrics}
+      />
+
       {/* Device Activity Table */}
       <DeviceActivityTable devices={devices} />
 
-      Bottom Section: Activity Feed and Insights
+      {/* Bottom Section: Activity Feed and Insights */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ActivityEventFeed 
           events={eventsWithIcons} 

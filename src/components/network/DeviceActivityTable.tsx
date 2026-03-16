@@ -25,6 +25,30 @@ const formatNumber = (num: number): string => {
   return num.toString();
 };
 
+// Helper function to format last active time
+const formatLastActive = (lastActive: string): string => {
+  if (lastActive === 'Just now') return lastActive;
+  if (lastActive === 'Unknown') return lastActive;
+  
+  try {
+    const date = new Date(lastActive);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    
+    return date.toLocaleDateString();
+  } catch {
+    return lastActive;
+  }
+};
+
 const getDeviceIcon = (type: DeviceActivity['type'], className?: string) => {
   const icons = {
     laptop: <Laptop className={className} />,
@@ -55,6 +79,22 @@ const DeviceActivityTable: React.FC<DeviceActivityTableProps> = ({ devices }) =>
     }
   };
 
+  if (devices.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Device Activity</CardTitle>
+          <CardDescription>Network traffic by device</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-slate-500">
+            No devices found
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -74,7 +114,7 @@ const DeviceActivityTable: React.FC<DeviceActivityTableProps> = ({ devices }) =>
                     className="flex items-center gap-1 hover:text-slate-900"
                     onClick={() => handleSort('packetsSent')}
                   >
-                    Packets Sent
+                    Data Sent
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </th>
@@ -83,7 +123,7 @@ const DeviceActivityTable: React.FC<DeviceActivityTableProps> = ({ devices }) =>
                     className="flex items-center gap-1 hover:text-slate-900"
                     onClick={() => handleSort('packetsReceived')}
                   >
-                    Packets Received
+                    Data Received
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </th>
@@ -121,7 +161,9 @@ const DeviceActivityTable: React.FC<DeviceActivityTableProps> = ({ devices }) =>
                       {device.activityLevel}
                     </Badge>
                   </td>
-                  <td className="py-3 px-4 text-sm text-slate-500">{device.lastActive}</td>
+                  <td className="py-3 px-4 text-sm text-slate-500">
+                    {formatLastActive(device.lastActive)}
+                  </td>
                 </tr>
               ))}
             </tbody>
