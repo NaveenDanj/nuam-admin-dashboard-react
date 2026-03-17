@@ -661,7 +661,7 @@ const NetworkTopologyPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
+          {/* <div className="flex items-center gap-2">
             <Switch
               id="show-inactive"
               checked={showInactive}
@@ -670,12 +670,12 @@ const NetworkTopologyPage: React.FC = () => {
             <Label htmlFor="show-inactive" className="text-sm text-slate-700">
               Show inactive devices
             </Label>
-          </div>
+          </div> */}
 
-          <Button variant="outline" size="sm">
+          {/* <Button variant="outline" size="sm">
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
-          </Button>
+          </Button> */}
         </div>
       </div>
 

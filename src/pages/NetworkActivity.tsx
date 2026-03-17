@@ -756,10 +756,18 @@ const NetworkActivityPage: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+<<<<<<< Updated upstream
   const handleRefresh = () => {
     const points = timeRange === '5m' ? 5 : timeRange === '1h' ? 12 : 24;
     setTrafficData(generateTrafficData(points));
   };
+=======
+  // Handle refresh button click
+  // const handleRefresh = () => {
+  //   refreshData();
+  //   setLastUpdated(new Date().toLocaleTimeString());
+  // };
+>>>>>>> Stashed changes
 
   const trafficDistribution: TrafficDistribution = {
     broadcast: 145000,
@@ -831,8 +839,13 @@ const NetworkActivityPage: React.FC = () => {
           <p className="text-sm text-slate-500 mt-1">Real-time and historical LAN traffic insights</p>
         </div>
         
+<<<<<<< Updated upstream
         <div className="flex items-center gap-3">
           <Select value={timeRange} onValueChange={setTimeRange}>
+=======
+        {/* <div className="flex items-center gap-3">
+          <Select value={timeRange} onValueChange={handleTimeRangeChange}>
+>>>>>>> Stashed changes
             <SelectTrigger className="w-40">
               <SelectValue placeholder="Time range" />
             </SelectTrigger>
@@ -847,7 +860,7 @@ const NetworkActivityPage: React.FC = () => {
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
-        </div>
+        </div> */}
       </div>
 
       <Separator />

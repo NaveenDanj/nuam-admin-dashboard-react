@@ -25,7 +25,13 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+<<<<<<< Updated upstream
 } from '@/components/ui/select';
+=======
+} from "@/components/ui/select";
+
+import { useIpAddressManagement } from "@/hooks/useIpAddressManagement"
+>>>>>>> Stashed changes
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -526,7 +532,20 @@ const DeviceDetailsModal: React.FC<DeviceDetailsModalProps> = ({ device, onClose
 // ============================================================================
 
 export default function IPAddressManagement() {
+<<<<<<< Updated upstream
   const [devices, setDevices] = useState<IPDevice[]>(mockDevices);
+=======
+  const {
+    networkStats,
+    devices: wsDevices,
+    alerts: wsAlerts,
+  } = useIpAddressManagement();
+
+  const [subnet, setSubnet] = useState("");
+  const [newDeviceIP, setNewDeviceIP] = useState("");
+
+  const [devices, setDevices] = useState<IPDevice[]>([]);
+>>>>>>> Stashed changes
   const [selectedDevice, setSelectedDevice] = useState<IPDevice | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'All' | 'DHCP' | 'Static'>('All');
@@ -547,6 +566,15 @@ export default function IPAddressManagement() {
     poolRange: '192.168.1.0/24',
   };
 
+<<<<<<< Updated upstream
+=======
+  useEffect(() => {
+    if (wsDevices) {
+      setDevices(wsDevices);
+    }
+  }, [wsDevices]);
+
+>>>>>>> Stashed changes
   // Filter and search logic
   const filteredDevices = useMemo(() => {
     let filtered = devices.filter((device) => {
@@ -637,7 +665,11 @@ export default function IPAddressManagement() {
               <Plus className="h-4 w-4" />
               Add Reservation
             </button>
+<<<<<<< Updated upstream
           </div>
+=======
+          </div> */}
+>>>>>>> Stashed changes
         </div>
       </div>
 

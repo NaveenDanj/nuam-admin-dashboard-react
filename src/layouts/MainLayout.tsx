@@ -60,14 +60,14 @@ function MainLayout() {
                 {/* Top Navigation */}
                 <header className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <h1 className="text-xl font-semibold text-slate-900">LAN Network Monitor</h1>
+                        <h1 className="text-2xl font-semibold text-slate-900">LAN Network Monitor</h1>
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded text-sm text-slate-700">
                         <Server className="h-4 w-4" />
-                        <span>Mininet Lab</span>
+                        {/* <span>Mininet Lab</span> */}
                         </div>
                     </div>
                     
-                    <div className="flex items-center gap-4">
+                    {/* <div className="flex items-center gap-4">
                         <button className="p-2 hover:bg-slate-100 rounded relative">
                             <Bell className="h-5 w-5 text-slate-600" />
                             <span className="absolute top-1 right-1 h-2 w-2 bg-blue-600 rounded-full"></span>
@@ -75,7 +75,7 @@ function MainLayout() {
                         <button className="p-2 hover:bg-slate-100 rounded">
                             <User className="h-5 w-5 text-slate-600" />
                         </button>
-                    </div>
+                    </div> */}
                 </header>
 
                 <main className="flex-1 overflow-y-auto p-6 space-y-6">

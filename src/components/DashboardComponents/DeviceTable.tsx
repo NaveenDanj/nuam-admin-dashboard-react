@@ -66,9 +66,9 @@ const DeviceTable: React.FC<DeviceTableProps> = ({ devices, pageSize = 8 }) => {
                 <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">
                   Vendor
                 </th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">
+                {/* <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">
                   Type
-                </th>
+                </th> */}
                 <th className="text-left py-3 px-4 text-sm font-medium text-slate-600">
                   Status
                 </th>
@@ -95,8 +95,14 @@ const DeviceTable: React.FC<DeviceTableProps> = ({ devices, pageSize = 8 }) => {
                   <td className="py-3 px-4 text-sm text-slate-600">
                     {device.vendor}
                   </td>
-                  <td className="py-3 px-4 text-sm text-slate-600">
+                  {/* <td className="py-3 px-4 text-sm text-slate-600">
                     {device.type}
+<<<<<<< Updated upstream
+=======
+                  </td> */}
+                  <td className="py-3 px-4 text-sm text-slate-600">
+                    {device.os}
+>>>>>>> Stashed changes
                   </td>
                   <td className="py-3 px-4">
                     <Badge
