@@ -185,14 +185,6 @@ nuam-frontend/
 \- README.md
 ```
 
-## Screenshots / Demo
-Add project visuals here:
-- Dashboard overview screenshot
-- Topology page screenshot
-- Network activity charts screenshot
-- IP management page screenshot
-- Reports page screenshot
-
 Recommended structure:
 ```text
 docs/
@@ -205,7 +197,18 @@ docs/
 \- demo-video-link.txt
 ```
 
-Demo video: Add your URL here (YouTube/Drive/etc.)
+## Screenshots / Demo
+
+> _Screenshots and demo recordings will be added here._  
+> In the meantime, see the [Usage Instructions](#usage-instructions) section for example console output and event payloads.
+
+<!-- Add screenshots like this:
+![Console output](docs/screenshots/console_output.png)
+![Dashboard topology view](docs/screenshots/topology_dashboard.png)
+-->
+
+Add a demo video link like this:
+[Demo Video](https://drive.google.com/file/d/1DS88ww9WOPVRE3yZo6-YTjvBJsrueXGL/view?usp=sharing)
 
 ## Contributors
 | Name | Role | Responsibilities |
